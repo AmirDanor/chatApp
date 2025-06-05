@@ -30,13 +30,11 @@ def broadcast(message:str, sender:socket = None) -> None:
     :rtype: NoneType
     """
     with clients_lock:
+        if sender is not None:
+            message = f'{online_clients[sender]}: {message}'
         for client in online_clients:
             try:
-                if sender == None:
-                    client.sendall(message.encode('utf-8'))
-                elif client != sender:
-                    formatted_message = text_color.blue(f'{online_clients[sender]}: ') + message
-                    client.sendall(formatted_message.encode('utf-8'))
+                client.sendall(message.encode('utf-8'))
             except:
                 pass  # Optional: handle/remove dead sockets
 
@@ -46,7 +44,7 @@ def handle_client(client_socket, client_addr):
     """
     print(f'Connection from {client_addr}')
     try:
-        reply = text_color.green('Please enter a username:\r\n')
+        reply = 'Please enter a username:\r\n'
         client_socket.sendall(reply.encode('utf-8'))
 
         data = client_socket.recv(1024)
@@ -57,15 +55,17 @@ def handle_client(client_socket, client_addr):
         welcome = f"Welcome, {username}!\r\nType 'quit' to disconnect.\r\n"
         client_socket.sendall(welcome.encode('utf-8'))
 
-        join_message = text_color.green(f'\r\n- - - {username} has joined the chat - - -\r\n')
+        join_message = f'\r\n- - - {username} has joined the chat - - -\r\n'
         broadcast(join_message)
 
         while True:
             msg = client_socket.recv(1024).decode('utf-8', errors='ignore').strip()
+            if not msg:
+                continue  # skip empty messages (including accidental Enter presses)
             if msg.lower() == 'quit':
                 goodbye = f"Goodbye, {username}!\r\n"
                 client_socket.sendall(goodbye.encode('utf-8'))
-                leave_message = text_color.green(f'\r\n- - - {username} has left the chat - - -\r\n')
+                leave_message = f'\r\n- - - {username} has left the chat - - -\r\n'
                 broadcast(leave_message)
                 break
             broadcast(msg+'\n\r', client_socket)
